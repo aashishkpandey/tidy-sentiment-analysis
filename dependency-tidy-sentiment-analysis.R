@@ -6,9 +6,12 @@ try(require("shiny")||install.packages("shiny"))
 try(require("tidyr")||install.packages("tidyr"))
 try(require("dplyr")||install.packages("dplyr"))
 try(require("ggplot2")||install.packages("ggplot2"))
+try(require("DT")||install.packages("DT"))
+
 
 library("shiny")
 library("tidytext")
 library("tidyr")
 library("dplyr")
 library("ggplot2")
+library("DT")
