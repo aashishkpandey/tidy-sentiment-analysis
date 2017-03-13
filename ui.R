@@ -18,18 +18,18 @@ shinyUI(fluidPage(
   # Input in sidepanel:
   sidebarPanel(
     
-    fileInput("file", "Upload text file")
+    fileInput("file", "Upload text file"),
     
     # textInput("stopw", ("Enter stop words separated by comma(,)"), value = "will,can"),
     
-    # selectInput("ws", "Weighing Scheme", 
-                # c("tf","tf-idf"), selected = "tf"),
+    selectInput("lexicon", "Sentiment Dictionary",
+    c("bing","nrc","afinn","loughran"), selected = "afinn"),
     
     # sliderInput("freq", "Minimum Frequency in Wordcloud:", min = 1,  max = 50, value = 4),
     # 
     # sliderInput("max",  "Maximum Number of Words in Wordcloud:", min = 1,  max = 300,  value = 50),  
     # 
-    # numericInput("seg", "Number of Segments", 4),
+    numericInput("index", "Document Index", 1)
     # numericInput("nodes", "Number of Central Nodes in co-occurrence graph", 4),
     # numericInput("connection", "Number of Max Connection with Central Node", 5),
     
@@ -64,32 +64,32 @@ shinyUI(fluidPage(
                        
                          ),
                 
-                tabPanel("afinn",h4(),
+                tabPanel("Sentiments - Corpus",h4(),
                          # verbatimTextOutput("dtmsummary"),
                          # br(),
                          # br(),
                          # h4("Word Cloud"),
-                         plotOutput("afinn.plot",height = 700, width = 700)
+                         plotOutput("sent.plot",height = 700, width = 700)
                          # h4("Weights Distribution of Wordcloud"),
                          # verbatimTextOutput("dtmsummary1")
                          ),
-                #                         
-                tabPanel("bing",
-                         # h4("Principal component plot"),
-                         plotOutput("bing.plot",height = 600, width = 700)
-                         # h4("Summary"),
-                         # verbatimTextOutput("summary")
-                         ),
-               
-                tabPanel("nrc",
-                         plotOutput("nrc.plot",height = 600, width = 700)),
-                
-                tabPanel("loughran",
-                         plotOutput("loughran.plot",height = 700, width = 700)),
-
-                tabPanel("Sentiment Score Data",br(),br(),
+                tabPanel("Sentiment Score - Corpus ",br(),br(),
                          downloadButton('downloadData2', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
-                         dataTableOutput("table"))
+                         dataTableOutput("table")),
+                
+                tabPanel("Sentiments - Document",h4(),
+                         # verbatimTextOutput("dtmsummary"),
+                         # br(),
+                         # br(),
+                         # h4("Word Cloud"),
+                         plotOutput("sent.plot.index",height = 700, width = 700)
+                         # h4("Weights Distribution of Wordcloud"),
+                         # verbatimTextOutput("dtmsummary1")
+                ),
+                
+                tabPanel("Sentiment Score - Document",br(),br(),
+                         # downloadButton('downloadData4', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
+                         dataTableOutput("table2"))
                 #                         
                          )
                 )
