@@ -8,6 +8,8 @@ library("tidyr")
 library("dplyr")
 library("ggplot2")
 library("DT")
+library("reshape2")
+library("wordcloud")
 
 shinyServer(function(input, output,session) {
   set.seed=2092014   
@@ -35,76 +37,175 @@ shinyServer(function(input, output,session) {
     # return(tidy.sentiment(dataset(), lexicon = input$lexicon))
     textdf = dataset()
     
-    if (input$lexicon == "nrc") {
-      sent = textdf %>%
+    if (input$lexicon != "afinn") {
+        sent = textdf %>%
         mutate(linenumber = row_number()) %>%
         ungroup() %>%
         unnest_tokens(word, text) %>%
-        inner_join(get_sentiments("nrc")) %>%
+        inner_join(get_sentiments(input$lexicon)) %>%
         count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
-        mutate(method = "nrc")
-    }
-    
-    if (input$lexicon == "bing") {
-      sent = textdf %>%
+        mutate(method = input$lexicon)
+    } else {
+        sent = textdf %>%
         mutate(linenumber = row_number()) %>%
         ungroup() %>%
         unnest_tokens(word, text) %>%
-        inner_join(get_sentiments("bing")) %>%
-        count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
-        mutate(method = "bing")
-    }
-    
-    if (input$lexicon == "afinn") {
-      sent = textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments("afinn")) %>%
+        inner_join(get_sentiments(input$lexicon)) %>%
         group_by(index = linenumber %/% 1) %>% 
         summarise(sentiment = sum(score)) %>% 
-        mutate(method = "afinn")
-    }
-    
-    if (input$lexicon == "loughran") {
-      sent = textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments("loughran")) %>%
-        count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
-        mutate(method = "loughran")
+        mutate(method = input$lexicon)
     }
     
     return(sent)
     
   })
 
-  output$sent.plot <- renderPlot ({
-  
-    if (input$lexicon != "afinn") {
-      ggplot(sentiments(), 
-             aes(index, n, fill = sentiment)) +     # index is x col, n is y col. fill=?
-        geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +     # stat=?
-        facet_wrap(~sentiment, ncol = 2, scales = "free_x")     # so cool.    
-    }   else  {
-      ggplot(sentiments(), 
-             aes(index, sentiment)) +     # index is x col, n is y col. fill=?
-        geom_bar(alpha = 1, stat = "identity", position = "identity", show.legend = FALSE)      # stat=?  
+  dat = reactive({
+    
+    dat1 = sentiments()[(sentiments()$sentiment %in% c("positive", "negative") ),]
+    dat2 = sentiments()[(sentiments()$sentiment %in% c("uncertainty","litigious","constraining","superfluous") ),]
+    dat3 = sentiments()[(sentiments()$sentiment %in% c("joy", "trust","surprise","anticipation") ),]
+    dat4 = sentiments()[(sentiments()$sentiment %in% c("anger", "disgust","fear", "sadness") ),]
+    
+    if (input$lexicon == "afinn") {
+      out = list(sentiments())
+    } else if (input$lexicon == "nrc") {
+      out = list(dat3,dat4,dat1)
+    } else if (input$lexicon == "bing") {
+      out = list(dat1)
+    } else if (input$lexicon == "loughran") {
+      out = list(dat2,dat1)
     }
+    return(out)
+  })
+  
+    output$sent.plots <- renderUI({
+    if (is.null(input$file)) {return(NULL)}
+    else {
+      
+      if (input$lexicon == "afinn") {
+        k = 1
+      } else if (input$lexicon == "nrc") {
+        k = 3
+      } else if (input$lexicon == "bing") {
+        k = 1
+      } else if (input$lexicon == "loughran") {
+        k = 2
+      }
+        plot_output_list <- lapply(1:k, function(i) {
+        plotname <- paste("plot", i, sep="")
+        plotOutput(plotname, height = 700, width = 700)
+      })
+      # Convert the list to a tagList - this is necessary for the list of items
+      # to display properly.
+      do.call(tagList, plot_output_list)
+    }
+  })
+  
+  
+  max_plots = 3
+  
+  for (i in 1:max_plots) {
+    # Need local so that each item gets its own number. Without it, the value
+    # of i in the renderPlot() will be the same across all instances, because
+    # of when the expression is evaluated.
+    local({
+      
+      my_i <- i 
+      plotname <- paste("plot", my_i, sep="")
+      
+        output[[plotname]] <- renderPlot({
+          if (input$lexicon == "afinn") {
+          ggplot(dat()[[my_i]],
+                 aes(index, sentiment)) +     # index is x col, n is y col. fill=?
+            geom_bar(alpha = 1, stat = "identity", position = "identity", show.legend = FALSE)      # stat=?
+          } else {
+            
+          ggplot(dat()[[my_i]], 
+            aes(index, n, fill = sentiment)) +     # index is x col, n is y col. fill=?
+            geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +     # stat=?
+            facet_wrap(~sentiment, ncol = 2, scales = "free_x")     # so cool.    
+          }
+        })
+      })
+  }
+  
+  output$word.cloud <- renderPlot({
+    textdf = dataset()
 
-    })
-
-
+    if (input$lexicon != "afinn") {
+      textdf %>%
+      mutate(linenumber = row_number()) %>%
+      ungroup() %>%
+      unnest_tokens(word, text) %>%
+      inner_join(get_sentiments(input$lexicon)) %>%
+      count(word, sentiment, sort = TRUE) %>%
+      acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+       comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
+                       max.words = 300)
+    } else {
+      
+        textdf %>%
+        mutate(linenumber = row_number()) %>%
+        ungroup() %>%
+        unnest_tokens(word, text) %>%
+        inner_join(get_sentiments(input$lexicon)) %>%
+        count(word, score, sort = TRUE) %>%
+        acast(word ~ score, value.var = "n", fill = 0) %>%
+        comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
+          max.words = 300)
+    }
+      
+      
+  })
+  
+  
   t1 = reactive({
     if (is.null(input$file)) {return(NULL)}
     else {
       
-      tb = sentiments()
-      y1 = data.frame(dataset() , index= 1:nrow(dataset()))
+     # tb = sentiments()
+    # y1 = data.frame(dataset() , index= 1:nrow(dataset()))
       
-      test = merge(tb,y1 ,by.x ="index", by.y= "index", all.y=T)
-      return(test)
+    textdf = dataset()
+      
+    worddf = textdf %>%
+    mutate(linenumber = row_number()) %>%
+    ungroup() %>%
+    unnest_tokens(word, text) %>%
+    inner_join(get_sentiments(input$lexicon)) %>% 
+    unique()
+      
+    worddf = data.frame(worddf)
+    
+    if (input$lexicon != "afinn") {
+    wdf = data.frame(NULL)
+    for (i in unique(worddf$linenumber)) {
+      tempd = worddf[worddf$linenumber == i,]
+      se = unique(tempd$sentiment)
+      se = se[order(se)]
+      for (s in se){
+        t = paste(tempd[tempd$sentiment == s,'word'],collapse = ", ")
+        dft = data.frame(index = i, sentiment = s, words = t)
+        wdf = rbind(wdf, dft)
+      }
+    } 
+        }   else {
+  wdf = data.frame(NULL)
+  for (i in unique(worddf$linenumber)) {
+    tempd = worddf[worddf$linenumber == i,]
+    se = unique(tempd$score)
+    se = se[order(se)]
+    for (s in se){
+      t = paste(tempd[tempd$score == s,'word'],collapse = ", ")
+      dft = data.frame(index = i, sentiment = s, words = t)
+      wdf = rbind(wdf, dft)
+    }
+  }
+  
+}      
+      # test = merge(tb,wdf ,by.x ="index", by.y= "index", all.y=T)
+      return(wdf)
     }
     
   })
@@ -165,22 +266,22 @@ shinyServer(function(input, output,session) {
     
   })
   
-  
-  output$sent.plot.index <- renderPlot ({
-    
-    if (input$lexicon != "afinn") {
-      ggplot(sentiments.index(), 
-             aes(index, n, fill = sentiment)) +     # index is x col, n is y col. fill=?
-        geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +     # stat=?
-        facet_wrap(~sentiment, ncol = 2, scales = "free_x")     # so cool.    
-    }   else  {
-      ggplot(sentiments.index(), 
-             aes(index, sentiment)) +     # index is x col, n is y col. fill=?
-        geom_bar(alpha = 1, stat = "identity", position = "identity", show.legend = FALSE)      # stat=?  
-    }
-    
-  })
-  
+
+  # output$sent.plot.index <- renderPlot ({
+  # 
+  #   if (input$lexicon != "afinn") {
+  #     ggplot(sentiments.index(),
+  #            aes(index, n, fill = sentiment)) +     # index is x col, n is y col. fill=?
+  #       geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +     # stat=?
+  #       facet_wrap(~sentiment, ncol = 2, scales = "free_x")     # so cool.
+  #   }   else  {
+  #     ggplot(sentiments.index(),
+  #            aes(index, sentiment)) +     # index is x col, n is y col. fill=?
+  #       geom_bar(alpha = 1, stat = "identity", position = "identity", show.legend = FALSE)      # stat=?
+  #   }
+  # 
+  # })
+
   
   t2 = reactive({
     if (is.null(input$file)) {return(NULL)}
@@ -202,6 +303,7 @@ shinyServer(function(input, output,session) {
   }, options = list(lengthMenu = c(5, 30, 50), pageLength = 30))
   
   
+
   #----------------------------------------------------#
   
   output$downloadData1 <- downloadHandler(

@@ -8,6 +8,11 @@ try(require("dplyr")||install.packages("dplyr"))
 try(require("ggplot2")||install.packages("ggplot2"))
 try(require("DT")||install.packages("DT"))
 
+try(require("reshape2")||install.packages("reshape2"))
+try(require("wordcloud")||install.packages("wordcloud"))
+
+library("reshape2")
+library("wordcloud")
 
 library("shiny")
 library("tidytext")

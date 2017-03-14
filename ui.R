@@ -7,6 +7,8 @@ library("tidytext")
 library("tidyr")
 library("dplyr")
 library("ggplot2")
+library("reshape2")
+library("wordcloud")
 
 
 shinyUI(fluidPage(
@@ -69,7 +71,15 @@ shinyUI(fluidPage(
                          # br(),
                          # br(),
                          # h4("Word Cloud"),
-                         plotOutput("sent.plot",height = 700, width = 700)
+                         # plotOutput("sent.plot1",height = 700, width = 700),
+                         # plotOutput("sent.plot2",height = 700, width = 700),
+                         # plotOutput("sent.plot3",height = 700, width = 700),
+                         # plotOutput("sent.plot4",height = 700, width = 700),
+                         # plotOutput("sent.plot5",height = 700, width = 700),
+                         # 
+                         uiOutput("sent.plots"),
+                         plotOutput("word.cloud",height = 700, width = 700)
+                         
                          # h4("Weights Distribution of Wordcloud"),
                          # verbatimTextOutput("dtmsummary1")
                          ),
@@ -77,15 +87,16 @@ shinyUI(fluidPage(
                          downloadButton('downloadData2', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
                          dataTableOutput("table")),
                 
-                tabPanel("Sentiments - Document",h4(),
-                         # verbatimTextOutput("dtmsummary"),
-                         # br(),
-                         # br(),
-                         # h4("Word Cloud"),
-                         plotOutput("sent.plot.index",height = 700, width = 700)
-                         # h4("Weights Distribution of Wordcloud"),
-                         # verbatimTextOutput("dtmsummary1")
-                ),
+                # tabPanel("Sentiments - Document",h4(),
+                #          # verbatimTextOutput("dtmsummary"),
+                #          # br(),
+                #          # br(),
+                #          # h4("Word Cloud"),
+                #          plotOutput("sent.plot.index",height = 700, width = 700)
+                #          
+                #          # h4("Weights Distribution of Wordcloud"),
+                #          # verbatimTextOutput("dtmsummary1")
+                # ),
                 
                 tabPanel("Sentiment Score - Document",br(),br(),
                          # downloadButton('downloadData4', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
