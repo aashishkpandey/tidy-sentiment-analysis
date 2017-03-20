@@ -153,7 +153,7 @@ shinyServer(function(input, output,session) {
         count(word, score, sort = TRUE) %>%
         acast(word ~ score, value.var = "n", fill = 0) %>%
         comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
-          max.words = 300)
+          max.words = 100)
     }
       
       
