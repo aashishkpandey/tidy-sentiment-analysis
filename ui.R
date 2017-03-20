@@ -21,30 +21,11 @@ shinyUI(fluidPage(
   sidebarPanel(
     
     fileInput("file", "Upload text file"),
-    
-    # textInput("stopw", ("Enter stop words separated by comma(,)"), value = "will,can"),
-    
+  
     selectInput("lexicon", "Sentiment Dictionary",
     c("afinn","bing","nrc","loughran"), selected = "afinn"),
     
-    # sliderInput("freq", "Minimum Frequency in Wordcloud:", min = 1,  max = 50, value = 4),
-    # 
-    # sliderInput("max",  "Maximum Number of Words in Wordcloud:", min = 1,  max = 300,  value = 50),  
-    # 
     numericInput("index", "Document Index", 1)
-    # numericInput("nodes", "Number of Central Nodes in co-occurrence graph", 4),
-    # numericInput("connection", "Number of Max Connection with Central Node", 5),
-    
-#     numericInput("tdmfreq", "Minimum frequency of terms for Topic Model:", 2),
-#     
-#     h6(div(textOutput("caption1"),style = "color:Blue")),
-#     
-#     h6(div(textOutput("caption2"))),
-#     
-#     numericInput("topic", "Number of Topics to fit:", 2),
-    
-    # submitButton(text = "Apply Changes", icon("refresh"))
-    
   ),
   
   # Main Panel:
@@ -71,6 +52,8 @@ shinyUI(fluidPage(
                       
                          a(href="http://www3.nd.edu/~mcdonald/Word_Lists.html","4- Loughran"),
                          p("This dictionary is created by Tim Loughran and Bill McDonald. In this dictionary each word is classified in financial context (uncertainty, litigious, constraining, superfluous, positive, negative)"),
+                        
+                         p("In the left-side bar panel you can change the document index number and accordingly document level analysis will be updated in \"Document level Analysis\" tab", align = "justify"),
                          
                          h4(p("Download Sample text file")),
                          downloadButton('downloadData1', 'Download Nokia Lumia reviews txt file'),br(),br(),
@@ -80,39 +63,23 @@ shinyUI(fluidPage(
                        
                          ),
                 
-                tabPanel("Sentiments - Corpus",h4(),
-                         # verbatimTextOutput("dtmsummary"),
-                         # br(),
-                         # br(),
-                         # h4("Word Cloud"),
-                         # plotOutput("sent.plot1",height = 700, width = 700),
-                         # plotOutput("sent.plot2",height = 700, width = 700),
-                         # plotOutput("sent.plot3",height = 700, width = 700),
-                         # plotOutput("sent.plot4",height = 700, width = 700),
-                         # plotOutput("sent.plot5",height = 700, width = 700),
+                tabPanel("Sentiments - Plot",h4(),
                          # 
                          uiOutput("sent.plots"),
-                         plotOutput("word.cloud",height = 700, width = 700)
-                         
+                         verbatimTextOutput("event")
                          # h4("Weights Distribution of Wordcloud"),
                          # verbatimTextOutput("dtmsummary1")
                          ),
-                tabPanel("Sentiment Score - Corpus ",br(),br(),
+                tabPanel("Sentiments - Stat",br(),
+                         dataTableOutput("count"),
+                         plotOutput("word.cloud",height = 700, width = 700),
+                         br()
+                         ),
+
+                tabPanel("Document level Analysis",br(),
                          downloadButton('downloadData2', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
-                         dataTableOutput("table")),
-                
-                # tabPanel("Sentiments - Document",h4(),
-                #          # verbatimTextOutput("dtmsummary"),
-                #          # br(),
-                #          # br(),
-                #          # h4("Word Cloud"),
-                #          plotOutput("sent.plot.index",height = 700, width = 700)
-                #          
-                #          # h4("Weights Distribution of Wordcloud"),
-                #          # verbatimTextOutput("dtmsummary1")
-                # ),
-                
-                tabPanel("Sentiment Score - Document",br(),br(),
+                         dataTableOutput("table"),
+                         br(),
                          # downloadButton('downloadData4', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
                          dataTableOutput("table2"))
                 #                         

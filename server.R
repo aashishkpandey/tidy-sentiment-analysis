@@ -10,6 +10,7 @@ library("ggplot2")
 library("DT")
 library("reshape2")
 library("wordcloud")
+library("plotly")
 
 shinyServer(function(input, output,session) {
   set.seed=2092014   
@@ -94,7 +95,9 @@ shinyServer(function(input, output,session) {
       }
         plot_output_list <- lapply(1:k, function(i) {
         plotname <- paste("plot", i, sep="")
-        plotOutput(plotname, height = 700, width = 700)
+        plotlyOutput(plotname, height = 700, width = 700)
+        
+        # plotOutput(plotname, height = 700, width = 700)
       })
       # Convert the list to a tagList - this is necessary for the list of items
       # to display properly.
@@ -114,11 +117,11 @@ shinyServer(function(input, output,session) {
       my_i <- i 
       plotname <- paste("plot", my_i, sep="")
       
-        output[[plotname]] <- renderPlot({
+        output[[plotname]] <- renderPlotly({
           if (input$lexicon == "afinn") {
-          ggplot(dat()[[my_i]],
-                 aes(index, sentiment)) +     # index is x col, n is y col. fill=?
-            geom_bar(alpha = 1, stat = "identity", position = "identity", show.legend = FALSE)      # stat=?
+            plot_ly(dat()[[my_i]],x = ~index, y = ~sentiment,type = "bar")
+            #      aes(index, sentiment)) +     # index is x col, n is y col. fill=?
+            # geom_bar(alpha = 1, stat = "identity", position = "identity", show.legend = FALSE)      # stat=?
           } else {
             
           ggplot(dat()[[my_i]], 
@@ -129,6 +132,13 @@ shinyServer(function(input, output,session) {
         })
       })
   }
+  
+  
+  output$event <- renderPrint({
+    d <- event_data("plotly_hover")
+    if (is.null(d)) "Hover on a point!" else d
+  })
+  
   
   output$word.cloud <- renderPlot({
     textdf = dataset()
@@ -155,65 +165,49 @@ shinyServer(function(input, output,session) {
         comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
           max.words = 100)
     }
-      
-      
+     
   })
   
   
-  t1 = reactive({
-    if (is.null(input$file)) {return(NULL)}
-    else {
-      
-     # tb = sentiments()
-    # y1 = data.frame(dataset() , index= 1:nrow(dataset()))
-      
+  output$count <- renderDataTable({
     textdf = dataset()
-      
-    worddf = textdf %>%
-    mutate(linenumber = row_number()) %>%
-    ungroup() %>%
-    unnest_tokens(word, text) %>%
-    inner_join(get_sentiments(input$lexicon)) %>% 
-    unique()
-      
-    worddf = data.frame(worddf)
     
     if (input$lexicon != "afinn") {
-    wdf = data.frame(NULL)
-    for (i in unique(worddf$linenumber)) {
-      tempd = worddf[worddf$linenumber == i,]
-      se = unique(tempd$sentiment)
-      se = se[order(se)]
-      for (s in se){
-        t = paste(tempd[tempd$sentiment == s,'word'],collapse = ", ")
-        dft = data.frame(index = i, sentiment = s, words = t)
-        wdf = rbind(wdf, dft)
-      }
-    } 
-        }   else {
-  wdf = data.frame(NULL)
-  for (i in unique(worddf$linenumber)) {
-    tempd = worddf[worddf$linenumber == i,]
-    se = unique(tempd$score)
-    se = se[order(se)]
-    for (s in se){
-      t = paste(tempd[tempd$score == s,'word'],collapse = ", ")
-      dft = data.frame(index = i, sentiment = s, words = t)
-      wdf = rbind(wdf, dft)
-    }
-  }
-  
-}      
-      # test = merge(tb,wdf ,by.x ="index", by.y= "index", all.y=T)
-      return(wdf)
+      wc = textdf %>%
+        mutate(linenumber = row_number()) %>%
+        ungroup() %>%
+        unnest_tokens(word, text) %>%
+        inner_join(get_sentiments(input$lexicon)) %>%
+        count(word, sentiment, sort = TRUE) %>%
+        acast(word ~ sentiment, value.var = "n", fill = 0) 
+        #   %>% comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
+        #   max.words = 300)
+      
+    } else {
+      
+      wc = textdf %>%
+        mutate(linenumber = row_number()) %>%
+        ungroup() %>%
+        unnest_tokens(word, text) %>%
+        inner_join(get_sentiments(input$lexicon)) %>%
+        count(word, score, sort = TRUE) %>%
+        acast(word ~ score, value.var = "n", fill = 0) 
+        # %>% comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
+        #   max.words = 100)
     }
     
+    wc1 = data.frame(wc)
+
+    if (input$lexicon == "afinn"){
+     neg =grep("\\.",colnames(wc1))
+     vec = c(rep("neg_",length(neg)), rep("pos_",(length(colnames(wc1))-length(neg))))
+     cnames = paste(vec,gsub("X|X\\.","",colnames(wc1)))
+     colnames(wc1) = cnames
+    }
+    wc1 = wc1[order(wc1[,1], decreasing = T),]
+    return(wc1)
+    
   })
-  
-  output$table <- renderDataTable({
-    datatable(t1(), filter = 'top')
-  }, options = list(lengthMenu = c(5, 30, 50), pageLength = 30))
-  
   
   #----------------------------------------------------#
   
@@ -227,7 +221,7 @@ shinyServer(function(input, output,session) {
         ungroup() %>%
         unnest_tokens(word, text) %>%
         inner_join(get_sentiments("nrc")) %>%
-        count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
+        count(sentiment, Sentence.No = linenumber %/% 1, sort = TRUE) %>%
         mutate(method = "nrc")
     }
     
@@ -237,7 +231,7 @@ shinyServer(function(input, output,session) {
         ungroup() %>%
         unnest_tokens(word, text) %>%
         inner_join(get_sentiments("bing")) %>%
-        count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
+        count(sentiment, Sentence.No = linenumber %/% 1, sort = TRUE) %>%
         mutate(method = "bing")
     }
     
@@ -247,7 +241,7 @@ shinyServer(function(input, output,session) {
         ungroup() %>%
         unnest_tokens(word, text) %>%
         inner_join(get_sentiments("afinn")) %>%
-        group_by(index = linenumber %/% 1) %>% 
+        group_by(Sentence.No = linenumber %/% 1) %>% 
         summarise(sentiment = sum(score)) %>% 
         mutate(method = "afinn")
     }
@@ -258,7 +252,7 @@ shinyServer(function(input, output,session) {
         ungroup() %>%
         unnest_tokens(word, text) %>%
         inner_join(get_sentiments("loughran")) %>%
-        count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
+        count(sentiment, Sentence.No = linenumber %/% 1, sort = TRUE) %>%
         mutate(method = "loughran")
     }
     
@@ -281,7 +275,64 @@ shinyServer(function(input, output,session) {
   #   }
   # 
   # })
-
+  
+  t1 = reactive({
+    if (is.null(input$file)) {return(NULL)}
+    else {
+      
+      # tb = sentiments()
+      # y1 = data.frame(dataset() , index= 1:nrow(dataset()))
+      
+      textdf = dataset()
+      
+      worddf = textdf %>%
+        mutate(linenumber = row_number()) %>%
+        ungroup() %>%
+        unnest_tokens(word, text) %>%
+        inner_join(get_sentiments(input$lexicon)) %>% 
+        unique()
+      
+      worddf = data.frame(worddf)
+      
+      if (input$lexicon != "afinn") {
+        wdf = data.frame(NULL)
+        for (i in unique(worddf$linenumber)) {
+          tempd = worddf[worddf$linenumber == i,]
+          se = unique(tempd$sentiment)
+          se = se[order(se)]
+          for (s in se){
+            t = paste(tempd[tempd$sentiment == s,'word'],collapse = ", ")
+            dft = data.frame(index = i, sentiment = s, words = t)
+            wdf = rbind(wdf, dft)
+          }
+        } 
+      }   else {
+        wdf = data.frame(NULL)
+        for (i in unique(worddf$linenumber)) {
+          tempd = worddf[worddf$linenumber == i,]
+          se = unique(tempd$score)
+          se = se[order(se)]
+          for (s in se){
+            t = paste(tempd[tempd$score == s,'word'],collapse = ", ")
+            dft = data.frame(index = i, sentiment = s, words = t)
+            wdf = rbind(wdf, dft)
+          }
+        }
+        
+      }
+      
+      wdf1 = wdf[wdf$index == input$index,]
+      # test = merge(tb,wdf ,by.x ="index", by.y= "index", all.y=T)
+      return(wdf1)
+    }
+    
+  })
+  
+  output$table <- renderDataTable({
+    datatable(t1(), rownames = F)#
+  }, options = list(lengthMenu = c(5, 30, 50), pageLength = 30))
+  
+  
   
   t2 = reactive({
     if (is.null(input$file)) {return(NULL)}
@@ -290,16 +341,16 @@ shinyServer(function(input, output,session) {
       tb = sentiments.index()
       tx = dataset()[input$index,] %>% unnest_tokens(text, text, token = "sentences")
       
-      y1 = data.frame(tx, index= 1:nrow(tx))
+      y1 = data.frame(tx, Sentence.No= 1:nrow(tx))
       
-      test = merge(tb,y1 ,by.x ="index", by.y= "index", all.y=T)
+      test = merge(tb,y1 ,by.x ="Sentence.No", by.y= "Sentence.No", all.y=T)
       return(test)
     }
     
   })
   
   output$table2 <- renderDataTable({
-    datatable(t2(), filter = 'top')
+    datatable(t2(), rownames = F)
   }, options = list(lengthMenu = c(5, 30, 50), pageLength = 30))
   
   

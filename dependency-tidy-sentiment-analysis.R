@@ -1,3 +1,4 @@
+# update.packages(ask = FALSE)
 try(require("devtools")||install.packages("devtools"))
 library("devtools")
 try(require("tidytext")||install_github("juliasilge/tidytext"))
