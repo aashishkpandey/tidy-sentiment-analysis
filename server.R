@@ -1,5 +1,5 @@
 #################################################
-#tidy sentiments                               #
+#         tidy sentiments                       #
 #################################################
 
 library("shiny")
@@ -11,6 +11,8 @@ library("DT")
 library("reshape2")
 library("wordcloud")
 library("plotly")
+
+#--------------------------------------------#
 
 shinyServer(function(input, output,session) {
   set.seed=2092014   
