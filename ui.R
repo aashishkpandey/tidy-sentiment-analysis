@@ -7,8 +7,11 @@ library("tidytext")
 library("tidyr")
 library("dplyr")
 library("ggplot2")
+library("DT")
 library("reshape2")
 library("wordcloud")
+library("plotly")
+
 
 
 shinyUI(fluidPage(
@@ -55,6 +58,7 @@ shinyUI(fluidPage(
                         
                          p("In the left-side bar panel you can change the document index number and accordingly document level analysis will be updated in \"Document level Analysis\" tab", align = "justify"),
                          
+                         p("If plots are not working in \"Sentiments - Plot\" tab then please install latest version of ggplot2. You can install ggplot2 by command - install.packages(\"ggplot2\")", align = "justify"),
                          h4(p("Download Sample text file")),
                          downloadButton('downloadData1', 'Download Nokia Lumia reviews txt file'),br(),br(),
                          
@@ -71,15 +75,18 @@ shinyUI(fluidPage(
                          # verbatimTextOutput("dtmsummary1")
                          ),
                 tabPanel("Sentiments - Stat",br(),
-                         dataTableOutput("count"),
                          plotOutput("word.cloud",height = 700, width = 700),
+                         br(),
+                         dataTableOutput("count"),
                          br()
                          ),
 
                 tabPanel("Document level Analysis",br(),
-                         downloadButton('downloadData2', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
+                         downloadButton('downloadData2', 'Download Sentiemnt Scores (Works only in browser)'), br(),br(),
+                         h4("List of the most frequent sentiment words at each level"),
                          dataTableOutput("table"),
                          br(),
+                         h4("Document parsed into sentences and sentiment score for each sentence"),
                          # downloadButton('downloadData4', 'Downlaod Sentiemnt Scores (Works only in browser)'), br(),br(),
                          dataTableOutput("table2"))
                 #                         
