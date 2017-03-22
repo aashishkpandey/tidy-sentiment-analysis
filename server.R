@@ -21,6 +21,7 @@ shinyServer(function(input, output,session) {
         if (is.null(input$file)) {return(NULL)}
     else {
       text  = readLines(input$file$datapath)
+      text = text[text!=""]
       
       if (length(text[text !=""]) == 0 ) stop (print("Null Vector :( "))
       
@@ -143,6 +144,9 @@ shinyServer(function(input, output,session) {
   
   
   output$word.cloud <- renderPlot({
+    
+    if (is.null(input$file)) {return(NULL)}
+    else {
     textdf = dataset()
 
     if (input$lexicon != "afinn") {
@@ -167,11 +171,15 @@ shinyServer(function(input, output,session) {
         comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
           max.words = 100)
     }
-     
+    }
   })
   
   
   output$count <- renderDataTable({
+    
+    if (is.null(input$file)) {return(NULL)}
+    else {
+      
     textdf = dataset()
     
     if (input$lexicon != "afinn") {
@@ -208,7 +216,7 @@ shinyServer(function(input, output,session) {
     }
     wc1 = wc1[order(wc1[,1], decreasing = T),]
     return(wc1)
-    
+    }
   })
   
   #----------------------------------------------------#

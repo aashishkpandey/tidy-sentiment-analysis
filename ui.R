@@ -82,7 +82,7 @@ shinyUI(fluidPage(
                          ),
 
                 tabPanel("Document level Analysis",br(),
-                         downloadButton('downloadData2', 'Download Sentiemnt Scores (Works only in browser)'), br(),br(),
+                         downloadButton('downloadData2', 'Download Sentiment Scores (Works only in browser)'), br(),br(),
                          h4("List of the most frequent sentiment words at each level"),
                          dataTableOutput("table"),
                          br(),
