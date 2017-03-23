@@ -6,6 +6,8 @@ try(require("psych")||install.packages("psych"))
 try(require("DBI")||install.packages("DBI"))
 try(require("assertthat")||install.packages("assertthat"))
 try(require("Rcpp")||install.packages("Rcpp"))
+try(require("mnormt")||install.packages("mnormt"))
+
 try(require("shiny")||install.packages("shiny"))
 try(require("tidyr")||install.packages("tidyr"))
 try(require("dplyr")||install.packages("dplyr"))
