@@ -22,13 +22,16 @@ shinyUI(fluidPage(
   
   # Input in sidepanel:
   sidebarPanel(
-    
-    fileInput("file", "Upload text file"),
-  
+    fileInput("file", "Upload text file"),  
     selectInput("lexicon", "Sentiment Dictionary",
-    c("afinn","bing","nrc","loughran"), selected = "afinn"),
+    c("afinn","bing","nrc","loughran","User Defined"="userdefined"), selected = "afinn"),
+    
+    uiOutput("dictionary"),
+    textInput("stopw", ("Enter stop words separated by comma(,)"), value = "will,can"),
     
     numericInput("index", "Document Index", 1)
+    # submitButton(text = "Apply Changes", icon("refresh"))
+    
   ),
   
   # Main Panel:
@@ -43,7 +46,7 @@ shinyUI(fluidPage(
                            To do basic sentiment analysis in your text corpus, click on Browse in left-sidebar panel and upload the txt file. Once the file is uploaded it will do the computations in 
                             back-end with default inputs and accordingly results will be displayed in various tabs.", align = "justify"),
                          
-                         p("You can change the sentiment dictionary in left-sidebar panel. This app supports four different sentiment dictionaries.", align = "justify"),
+                         p("You can change the sentiment dictionary in left-sidebar panel. This app supports four inbuilt sentiment dictionaries and one user defined dictionary. If a user selects User Defined dictionary, then a browse file input will appear below sentiment dictionary drop-down in left-side-bar panel and user can upload the user defined dictionary. This user defined dictionary should be in csv format and first column of the dictionary should be word and second column should be score. You can download the sample user defined dictionary below.", align = "justify"),
                          a(href="http://www2.imm.dtu.dk/pubdb/views/publication_details.php?id=6010","1- Afinn"),
                          p("AFINN is a list of English words rated for valence with an integer between minus five (negative) and plus five (positive). The words have been manually labeled by Finn Arup Nielsen in 2009-2011."),
                       
@@ -56,11 +59,14 @@ shinyUI(fluidPage(
                          a(href="http://www3.nd.edu/~mcdonald/Word_Lists.html","4- Loughran"),
                          p("This dictionary is created by Tim Loughran and Bill McDonald. In this dictionary each word is classified in financial context (uncertainty, litigious, constraining, superfluous, positive, negative)"),
                         
+                         h4(p("Download Sample user defined dictionary file")),
+                         downloadButton('downloadData3', 'Download User Defined Dictionary (works only in browser)'),br(),br(),
+                         
                          p("In the left-side bar panel you can change the document index number and accordingly document level analysis will be updated in \"Document level Analysis\" tab", align = "justify"),
                          
                          p("If plots are not working in \"Sentiments - Plot\" tab then please install latest version of ggplot2. You can install ggplot2 by command - install.packages(\"ggplot2\")", align = "justify"),
                          h4(p("Download Sample text file")),
-                         downloadButton('downloadData1', 'Download Nokia Lumia reviews txt file'),br(),br(),
+                         downloadButton('downloadData1', 'Download Nokia Lumia reviews txt file (works only in browser)'),br(),br(),
                          
                          p("Please note that download will not work with RStudio interface. Download will work only in web-browsers. So open this app in a web-browser and then download the example file. For opening this app in web-browser click on \"Open in Browser\" as shown below -"),
                          img(src = "example1.png")
@@ -68,6 +74,7 @@ shinyUI(fluidPage(
                          ),
                 
                 tabPanel("Sentiments - Plot",h4(),
+                         # verbatimTextOutput('chk'),
                          # 
                          uiOutput("sent.plots"),
                          verbatimTextOutput("event")

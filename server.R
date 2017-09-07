@@ -16,6 +16,17 @@ library("plotly")
 
 shinyServer(function(input, output,session) {
   set.seed=2092014   
+  
+  output$dictionary <- renderUI({
+    if (input$lexicon != 'userdefined') return(NULL)
+    
+    fileInput("user_dict", "Upload User-Defined Dictionary")
+      })
+  
+  userdictionary = reactive({
+    if (input$lexicon != 'userdefined') return(NULL)
+    userdictionary = read.csv(input$user_dict$datapath,header=TRUE, sep = ",", stringsAsFactors = F)
+      })
 
   dataset <- reactive({
         if (is.null(input$file)) {return(NULL)}
@@ -36,43 +47,77 @@ shinyServer(function(input, output,session) {
     return(textdf)
       })
   
+    stopw = reactive({
+        # input = list(stopw = "have had samsung")
+        stopwords = data_frame(text = input$stopw) %>%
+        mutate(linenumber = row_number()) %>%
+        ungroup() %>%
+        unnest_tokens(word, text)
+        stopwords
+    })
   
-  sentiments =  reactive ({
+    sent.df = reactive({
+      textdf = dataset()
+      
+      if (input$lexicon == 'userdefined'){
+          sent = textdf %>%
+          mutate(linenumber = row_number()) %>%
+          ungroup() %>%
+          unnest_tokens(word, text) %>%
+          # anti_join(stopwords, by="word") %>%
+          anti_join(stopw(), by="word") %>%
+          # inner_join(tbl_df(userdictionary)) 
+          inner_join(tbl_df(userdictionary()))
+        }    else {
+        sent = textdf %>%
+          mutate(linenumber = row_number()) %>%
+          ungroup() %>%
+          unnest_tokens(word, text) %>% 
+          anti_join(stopw(), by="word") %>% 
+          inner_join(get_sentiments(input$lexicon)) 
+        }
+      
+      return(sent)
+    })
+  
+
+  sentiments_cdf =  reactive ({
     # return(tidy.sentiment(dataset(), lexicon = input$lexicon))
-    textdf = dataset()
     
-    if (input$lexicon != "afinn") {
-        sent = textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments(input$lexicon)) %>%
-        count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
-        mutate(method = input$lexicon)
-    } else {
-        sent = textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments(input$lexicon)) %>%
+    if (input$lexicon %in% c('userdefined',"afinn")){
+      sentiments_cdf = sent.df() %>%
+        # sentiments = sent %>%
         group_by(index = linenumber %/% 1) %>% 
         summarise(sentiment = sum(score)) %>% 
         mutate(method = input$lexicon)
+      
+      
+    }  else {
+      sentiments_cdf = sent.df() %>%
+        count(sentiment, index = linenumber %/% 1, sort = TRUE) %>%
+        mutate(method = input$lexicon)
+      
     }
     
-    return(sent)
+    return(sentiments_cdf)
+    
     
   })
 
+  # output$chk = renderPrint({
+  #   sentiments_cdf()
+  # })
+  
+  
   dat = reactive({
     
-    dat1 = sentiments()[(sentiments()$sentiment %in% c("positive", "negative") ),]
-    dat2 = sentiments()[(sentiments()$sentiment %in% c("uncertainty","litigious","constraining","superfluous") ),]
-    dat3 = sentiments()[(sentiments()$sentiment %in% c("joy", "trust","surprise","anticipation") ),]
-    dat4 = sentiments()[(sentiments()$sentiment %in% c("anger", "disgust","fear", "sadness") ),]
+    dat1 = sentiments_cdf()[(sentiments_cdf()$sentiment %in% c("positive", "negative") ),]
+    dat2 = sentiments_cdf()[(sentiments_cdf()$sentiment %in% c("uncertainty","litigious","constraining","superfluous") ),]
+    dat3 = sentiments_cdf()[(sentiments_cdf()$sentiment %in% c("joy", "trust","surprise","anticipation") ),]
+    dat4 = sentiments_cdf()[(sentiments_cdf()$sentiment %in% c("anger", "disgust","fear", "sadness") ),]
     
-    if (input$lexicon == "afinn") {
-      out = list(sentiments())
+    if (input$lexicon %in% c("afinn","userdefined")) {
+      out = list(sentiments_cdf())
     } else if (input$lexicon == "nrc") {
       out = list(dat3,dat4,dat1)
     } else if (input$lexicon == "bing") {
@@ -87,7 +132,7 @@ shinyServer(function(input, output,session) {
     if (is.null(input$file)) {return(NULL)}
     else {
       
-      if (input$lexicon == "afinn") {
+      if (input$lexicon %in% c("afinn","userdefined")) {
         k = 1
       } else if (input$lexicon == "nrc") {
         k = 3
@@ -121,8 +166,9 @@ shinyServer(function(input, output,session) {
       plotname <- paste("plot", my_i, sep="")
       
         output[[plotname]] <- renderPlotly({
-          if (input$lexicon == "afinn") {
-            plot_ly(dat()[[my_i]],x = ~index, y = ~sentiment,type = "bar")
+          if (input$lexicon %in% c("afinn",'userdefined')) {
+            plot_ly(dat()[[my_i]],x = ~index, y = ~ sentiment,type = "bar")
+            # plot_ly(sentiments,x = ~index, y = ~ sentiment,type = "bar")
             #      aes(index, sentiment)) +     # index is x col, n is y col. fill=?
             # geom_bar(alpha = 1, stat = "identity", position = "identity", show.legend = FALSE)      # stat=?
           } else {
@@ -147,32 +193,26 @@ shinyServer(function(input, output,session) {
     
     if (is.null(input$file)) {return(NULL)}
     else {
-    textdf = dataset()
-
-    if (input$lexicon != "afinn") {
-      textdf %>%
-      mutate(linenumber = row_number()) %>%
-      ungroup() %>%
-      unnest_tokens(word, text) %>%
-      inner_join(get_sentiments(input$lexicon)) %>%
+    
+    if (input$lexicon  %in% c("nrc","bing","loughran")) {
+      sent.df() %>%
       count(word, sentiment, sort = TRUE) %>%
       acast(word ~ sentiment, value.var = "n", fill = 0) %>%
        comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
                        max.words = 300)
     } else {
       
-        textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments(input$lexicon)) %>%
+        sent.df() %>%
         count(word, score, sort = TRUE) %>%
         acast(word ~ score, value.var = "n", fill = 0) %>%
         comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
-          max.words = 100)
+        max.words = 100)
     }
     }
   })
+  
+
+  
   
   
   output$count <- renderDataTable({
@@ -180,14 +220,10 @@ shinyServer(function(input, output,session) {
     if (is.null(input$file)) {return(NULL)}
     else {
       
-    textdf = dataset()
+    # textdf = dataset()
     
-    if (input$lexicon != "afinn") {
-      wc = textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments(input$lexicon)) %>%
+    if (input$lexicon %in% c("nrc","bing","loughran")) {
+        wc = sent.df() %>%
         count(word, sentiment, sort = TRUE) %>%
         acast(word ~ sentiment, value.var = "n", fill = 0) 
         #   %>% comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
@@ -195,11 +231,7 @@ shinyServer(function(input, output,session) {
       
     } else {
       
-      wc = textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments(input$lexicon)) %>%
+        wc = sent.df() %>%
         count(word, score, sort = TRUE) %>%
         acast(word ~ score, value.var = "n", fill = 0) 
         # %>% comparison.cloud( #colors = c("#F8766D", "#00BFC4"),
@@ -208,7 +240,7 @@ shinyServer(function(input, output,session) {
     
     wc1 = data.frame(wc)
 
-    if (input$lexicon == "afinn"){
+    if (input$lexicon %in% c("afinn","userdefined")){
      neg =grep("\\.",colnames(wc1))
      vec = c(rep("neg_",length(neg)), rep("pos_",(length(colnames(wc1))-length(neg))))
      cnames = paste(vec,gsub("X|X\\.","",colnames(wc1)))
@@ -226,10 +258,11 @@ shinyServer(function(input, output,session) {
     textdf = dataset()[input$index,] %>% unnest_tokens(text, text, token = "sentences")
   
     if (input$lexicon == "nrc") {
-      sent = textdf %>%
+        sent = textdf %>%
         mutate(linenumber = row_number()) %>%
         ungroup() %>%
         unnest_tokens(word, text) %>%
+        anti_join(stopw(), by="word") %>%
         inner_join(get_sentiments("nrc")) %>%
         count(sentiment, Sentence.No = linenumber %/% 1, sort = TRUE) %>%
         mutate(method = "nrc")
@@ -240,6 +273,7 @@ shinyServer(function(input, output,session) {
         mutate(linenumber = row_number()) %>%
         ungroup() %>%
         unnest_tokens(word, text) %>%
+        anti_join(stopw(), by="word") %>%
         inner_join(get_sentiments("bing")) %>%
         count(sentiment, Sentence.No = linenumber %/% 1, sort = TRUE) %>%
         mutate(method = "bing")
@@ -250,6 +284,7 @@ shinyServer(function(input, output,session) {
         mutate(linenumber = row_number()) %>%
         ungroup() %>%
         unnest_tokens(word, text) %>%
+        anti_join(stopw(), by="word") %>%
         inner_join(get_sentiments("afinn")) %>%
         group_by(Sentence.No = linenumber %/% 1) %>% 
         summarise(sentiment = sum(score)) %>% 
@@ -261,9 +296,22 @@ shinyServer(function(input, output,session) {
         mutate(linenumber = row_number()) %>%
         ungroup() %>%
         unnest_tokens(word, text) %>%
+        anti_join(stopw(), by="word") %>%
         inner_join(get_sentiments("loughran")) %>%
         count(sentiment, Sentence.No = linenumber %/% 1, sort = TRUE) %>%
         mutate(method = "loughran")
+    }
+    
+    if (input$lexicon == "userdefined") {
+        sent = textdf %>%
+        mutate(linenumber = row_number()) %>%
+        ungroup() %>%
+        unnest_tokens(word, text) %>%
+        anti_join(stopw(), by="word") %>%
+        inner_join(tbl_df(userdictionary())) %>%
+        group_by(Sentence.No = linenumber %/% 1) %>% 
+        summarise(sentiment = sum(score)) %>% 
+        mutate(method = "userdefined")
     }
     
     return(sent)
@@ -290,21 +338,31 @@ shinyServer(function(input, output,session) {
     if (is.null(input$file)) {return(NULL)}
     else {
       
-      # tb = sentiments()
-      # y1 = data.frame(dataset() , index= 1:nrow(dataset()))
-      
       textdf = dataset()
       
-      worddf = textdf %>%
-        mutate(linenumber = row_number()) %>%
-        ungroup() %>%
-        unnest_tokens(word, text) %>%
-        inner_join(get_sentiments(input$lexicon)) %>% 
-        unique()
+      if (input$lexicon == 'userdefined'){
+          worddf = textdf %>%
+          mutate(linenumber = row_number()) %>%
+          ungroup() %>%
+          unnest_tokens(word, text) %>%
+          # anti_join(stopwords, by="word") %>%
+          anti_join(stopw(), by="word") %>%
+          # inner_join(tbl_df(userdictionary)) 
+          inner_join(tbl_df(userdictionary())) %>% 
+          unique()
+      }    else {
+          worddf = textdf %>%
+          mutate(linenumber = row_number()) %>%
+          ungroup() %>%
+          unnest_tokens(word, text) %>% 
+          anti_join(stopw(), by="word") %>% 
+          inner_join(get_sentiments(input$lexicon)) %>% 
+          unique()
+      }
       
       worddf = data.frame(worddf)
       
-      if (input$lexicon != "afinn") {
+      if (input$lexicon %in%  c("nrc","bing","loughran")) {
         wdf = data.frame(NULL)
         for (i in unique(worddf$linenumber)) {
           tempd = worddf[worddf$linenumber == i,]
@@ -377,7 +435,13 @@ shinyServer(function(input, output,session) {
   output$downloadData2 <- downloadHandler(
     filename = function() { "Sentiments Scores.csv" },
     content = function(file) {
-      write.csv(sentiments(), file, row.names=F)
+      write.csv(sentiments_cdf(), file, row.names=F)
+    })
+  
+  output$downloadData3 <- downloadHandler(
+    filename = function() { "User Defined Dictionary.csv" },
+    content = function(file) {
+      write.csv(read.csv("data/user defined dictionary.csv",stringsAsFactors = F), file, row.names=F)
     })
 
 })
